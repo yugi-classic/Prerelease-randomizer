@@ -1,3 +1,3 @@
-com\mycompany\prerelease\randomizer\PrereleaseRandomizer.class
-com\mycompany\prerelease\randomizer\CardImageViewer$1.class
-com\mycompany\prerelease\randomizer\CardImageViewer.class
+com\prerelease\randomizer\CardImageViewer.class
+com\prerelease\randomizer\Main.class
+com\prerelease\randomizer\PrereleaseRandomizer.class
