@@ -7,27 +7,24 @@ package com.prerelease.randomizer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class PrereleaseRandomizer {
 
     private static final String PATH_TO_JSON = "Data\\json\\OnePiece-OP09.json";
-    private static final String OUTPUT_FILE = "Decklist.txt";
-    private static final int MAX_COPIES = 4;
-    private static final int MAX_SUPER_RARE_CARDS = 6;
-    private static final int DECK_SIZE = 41;
+    private static final int DRAFT_PICKS = 6;
 
-    public void randomize() {
+    public List<List<String>> randomize() {
         try {
             Map<String, String> cardData = extractCardData(PATH_TO_JSON);
-            List<String> decklist = generateDecklist(cardData);
-            writeDecklistToFile(decklist, OUTPUT_FILE);
-            CardImageViewer.openViewer();
+            return generateCardPools(cardData, new Random());
         }
         catch (IOException e) {
             System.err.println("Ein Fehler ist aufgetreten: " + e.getMessage());
+            return Collections.emptyList();
         }
     }
 
@@ -47,113 +44,82 @@ public class PrereleaseRandomizer {
         return cardData;
     }
 
-    private static List<String> generateDecklist(Map<String, String> cardData) {
-        Random random = new Random();
-        List<String> decklist = new ArrayList<>();
-        List<String> cardNumbers = new ArrayList<>(cardData.keySet());
-        List<String> rarities = new ArrayList<>(cardData.values());
+    private static List<List<String>> generateCardPools(Map<String, String> cardData, Random random) {
+        List<List<String>> pools = new ArrayList<>();
+        List<String> commons = filterCardsByRarity(cardData, rarity -> rarity.contains("Common"));
+        List<String> rares = filterCardsByRarity(cardData, rarity -> rarity.matches("(^|_)Rare($|_)"));
+        List<String> uncommons = filterCardsByRarity(cardData, rarity -> rarity.contains("Uncommon"));
+        List<String> superRares = filterCardsByRarity(cardData,
+                rarity -> (rarity.contains("Super-Rare") || rarity.contains("Secret-Rare"))
+                        || rarity.contains("Alternate-Art") && !rarity.matches("(^|_)Rare($|_)"));
 
-        int totalCards = 0;
-        int rareCardCount = 0;
-        boolean leaderCardAdded = false;
+        List<String> specialRare = filterCardsByRarity(cardData, rarity -> (rarity.contains("Special-Card")));
 
-        while (!cardNumbers.isEmpty() && totalCards < DECK_SIZE) {
-            int randomIndex = random.nextInt(cardNumbers.size());
-            String card = cardNumbers.get(randomIndex);
-            String rarity = rarities.get(randomIndex);
+        List<String> mangaRare = filterCardsByRarity(cardData, rarity -> (rarity.contains("Manga-Art")));
 
-            if (isRareCard(rarity)) {
-                double value = random.nextDouble();
-                if (value > 0.2) {
-                    cardNumbers.remove(randomIndex);
-                    rarities.remove(randomIndex);
-                    continue;
+        for (int i = 0; i < DRAFT_PICKS; i++) {
+            List<String> pool = new ArrayList<>();
+            pool.addAll(pickRandomCards(commons, 8, random, cardData));
+
+            if (random.nextDouble() > 0.3) {
+                pool.addAll(pickRandomCards(rares, 2, random, cardData));
+                pool.addAll(pickRandomCards(uncommons, 2, random, cardData));
+            }
+            else {
+
+                if (random.nextDouble() <= 0.05) {
+                    pool.addAll(pickRandomCards(specialRare, 1, random, cardData));
+                    pool.addAll(pickRandomCards(rares, 1, random, cardData));
+                    pool.addAll(pickRandomCards(uncommons, 2, random, cardData));
+                }
+                else if (random.nextDouble() <= 0.01) {
+                    pool.addAll(pickRandomCards(mangaRare, 1, random, cardData));
+                    pool.addAll(pickRandomCards(rares, 1, random, cardData));
+                    pool.addAll(pickRandomCards(uncommons, 2, random, cardData));
+                }
+                else {
+                    pool.addAll(pickRandomCards(superRares, 1, random, cardData));
+                    pool.addAll(pickRandomCards(rares, 1, random, cardData));
+                    pool.addAll(pickRandomCards(uncommons, 2, random, cardData));
                 }
             }
 
-            if (rarity.contains("Leader/Alternate-Art")) {
-                card = "P-999";
-                if (leaderCardAdded) {
-                    continue;
-                }
-                decklist.add("1x" + card);
-                totalCards++;
-                leaderCardAdded = true;
-
-                cardNumbers.remove(randomIndex);
-                rarities.remove(randomIndex);
-                continue;
-            }
-
-            if (isRareCard(rarity) && rareCardCount >= MAX_SUPER_RARE_CARDS) {
-                continue;
-            }
-
-            int maxCopies = Math.min(MAX_COPIES, DECK_SIZE - totalCards);
-            int copies = generateWeightedCopies(maxCopies, random, rarity, rareCardCount);
-
-            if (copies > 0) {
-                decklist.add(copies + "x" + card);
-                totalCards += copies;
-
-                if (isRareCard(rarity)) {
-                    rareCardCount++;
-                }
-
-                cardNumbers.remove(randomIndex);
-                rarities.remove(randomIndex);
-            }
+            pools.add(pool);
+            System.out.println(pool.size());
         }
 
-        return decklist;
+        return pools;
     }
 
-    private static int generateWeightedCopies(int maxCopies, Random random, String rarity, int superRareCount) {
-        int[] weights;
+    private static List<String> pickRandomCards(List<String> cardList, int count, Random random,
+            Map<String, String> cardData) {
+        List<String> pickedCards = new ArrayList<>();
+        for (int i = 0; i < count && !cardList.isEmpty(); i++) {
+            int index = random.nextInt(cardList.size());
+            String cardNumber = cardList.get(index);
+            String rarity = cardData.get(cardNumber);
+            String[] parts = rarity.split("/");
 
-        if (rarity.contains("Super-Rare") || rarity.contains("Secret-Rare")) {
-            weights = new int[] {
-                    30, 20, 10, 5
-            };
-        }
-        else if (rarity.contains("Special") || rarity.contains("Alternate-Art") || rarity.contains("Manga-Art")) {
-            weights = new int[] {
-                    50, 35, 10, 5
-            };
-        }
-        else {
-            weights = new int[] {
-                    50, 30, 15, 5
-            };
-        }
-
-        if (superRareCount >= MAX_SUPER_RARE_CARDS
-                && (rarity.contains("Super-Rare") || rarity.contains("Secret-Rare"))) {
-            return 0;
-        }
-
-        int[] adjustedWeights = Arrays.copyOf(weights, maxCopies);
-        int totalWeight = Arrays.stream(adjustedWeights).sum();
-        int randomValue = random.nextInt(totalWeight);
-
-        int cumulativeWeight = 0;
-        for (int i = 0; i < adjustedWeights.length; i++) {
-            cumulativeWeight += adjustedWeights[i];
-            if (randomValue < cumulativeWeight) {
-                return i + 1;
+            if (parts.length == 1) {
+                rarity = parts[0];
             }
+            else if (parts.length == 2) {
+                rarity = parts[random.nextInt(2)];
+            }
+            else if (parts.length == 3) {
+                rarity = parts[random.nextInt(3)];
+            }
+            else if (parts.length == 4) {
+                rarity = parts[random.nextInt(4)];
+            }
+            pickedCards.add(cardNumber + "_" + rarity);
         }
-
-        return 1;
+        return pickedCards;
     }
 
-    private static boolean isRareCard(String rarity) {
-        return rarity.contains("Super-Rare") || rarity.contains("Secret-Rare") || rarity.contains("Special")
-                || rarity.contains("Alternate-Art") || rarity.contains("Manga-Art");
-    }
-
-    private static void writeDecklistToFile(List<String> decklist, String outputPath) throws IOException {
-        Files.write(Paths.get(outputPath), decklist);
+    private static List<String> filterCardsByRarity(Map<String, String> cardData, Predicate<String> rarityFilter) {
+        return cardData.entrySet().stream().filter(entry -> rarityFilter.test(entry.getValue())).map(Map.Entry::getKey)
+                .collect(Collectors.toList());
     }
 
 }

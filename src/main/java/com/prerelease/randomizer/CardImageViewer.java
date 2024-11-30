@@ -9,18 +9,16 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.Image;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
@@ -33,44 +31,34 @@ import javax.swing.SwingUtilities;
 public class CardImageViewer {
 
     private static final String IMAGE_PATH = "Images\\OnePiece\\OP09";
-    private static final String DECKLIST_PATH = "Decklist.txt";
 
-    private static CardImageViewer instance;
     private JFrame frame;
     private JPanel imagePanel;
     private JTextArea decklistArea;
+    private List<String> currentDeck;
 
-    public static void openViewer() {
-        SwingUtilities.invokeLater(() -> {
-            try {
-                if (instance == null) {
-                    instance = new CardImageViewer();
-                    instance.createAndShowGUI();
-                }
-                else {
-                    instance.updateDeckContent();
-                }
-            }
-            catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new CardImageViewer().startViewer());
     }
 
-    public void createAndShowGUI() throws IOException {
-        frame = new JFrame("Card Image Viewer");
+    public void startViewer() {
+        try {
+            currentDeck = new ArrayList<>();
+            createAndShowGUI();
+            loadDraftPools();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void createAndShowGUI() {
+        frame = new JFrame("Card Draft Viewer");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
 
-        JButton randomizeButton = new JButton("Randomize Deck");
-        randomizeButton.addActionListener(e -> randomizeDeck());
-
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.add(randomizeButton);
-        frame.add(buttonPanel, BorderLayout.SOUTH);
-
         imagePanel = new JPanel();
-        imagePanel.setLayout(new GridLayout(10, 10));
+        imagePanel.setLayout(new GridLayout(0, 6, 10, 10));
 
         JScrollPane imageScrollPane = new JScrollPane(imagePanel);
         imageScrollPane.setPreferredSize(new Dimension(800, 800));
@@ -81,84 +69,99 @@ public class CardImageViewer {
         JScrollPane decklistScrollPane = new JScrollPane(decklistArea);
         decklistScrollPane.setPreferredSize(new Dimension(300, 800));
 
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, imageScrollPane, decklistScrollPane);
-        splitPane.setDividerLocation(800);
-        frame.add(splitPane, BorderLayout.CENTER);
+        JButton regenerateButton = new JButton("Neu generieren");
+        regenerateButton.addActionListener(e -> {
+            try {
+                regenerateDraftPools();
+            }
+            catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        });
 
-        frame.setSize(1200, 800);
+        JPanel controlPanel = new JPanel();
+        controlPanel.setLayout(new BorderLayout());
+        controlPanel.add(regenerateButton, BorderLayout.CENTER);
+
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, imageScrollPane, decklistScrollPane);
+        splitPane.setDividerLocation(1000);
+        frame.add(splitPane, BorderLayout.CENTER);
+        frame.add(controlPanel, BorderLayout.SOUTH);
+
+        frame.setSize(1600, 1000);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
-
-        updateDeckContent();
     }
 
-    private void randomizeDeck() {
-        try {
-            new PrereleaseRandomizer().randomize();
-            updateDeckContent();
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void updateDeckContent() throws IOException {
-        Set<String> cardNumbersInDecklist = readCardNumbersFromDecklist(DECKLIST_PATH);
+    private void loadDraftPools() throws IOException {
+        PrereleaseRandomizer randomizer = new PrereleaseRandomizer();
+        List<List<String>> draftPools = randomizer.randomize();
 
         imagePanel.removeAll();
 
-        File imageDirectory = new File(IMAGE_PATH);
-        File[] imageFiles = imageDirectory.listFiles((dir, name) -> {
-            String cardNumberFromName = name.split("_")[0];
-            return name.endsWith(".png") && cardNumbersInDecklist.contains(cardNumberFromName);
-        });
+        for (List<String> pool : draftPools) {
+            for (String cardNumber : pool) {
+                File imageFile = new File(IMAGE_PATH + "\\" + cardNumber + ".png");
+                if (imageFile.exists()) {
+                    ImageIcon icon = new ImageIcon(imageFile.getAbsolutePath());
+                    Image img = icon.getImage();
+                    Image scaledImg = img.getScaledInstance(150, 150, Image.SCALE_SMOOTH);
+                    icon = new ImageIcon(scaledImg);
 
-        if (imageFiles != null) {
-            for (File imageFile : imageFiles) {
-                String imageName = imageFile.getName();
-                String cardNumber = imageName.split("_")[0];
+                    String[] parts = cardNumber.split("_");
+                    String number = parts[0];
 
-                if (cardNumbersInDecklist.contains(cardNumber)) {
-                    ImageIcon imageIcon = new ImageIcon(imageFile.getAbsolutePath());
-                    Image img = imageIcon.getImage();
-                    Image scaledImg = img.getScaledInstance(200, 280, Image.SCALE_SMOOTH);
-                    imageIcon = new ImageIcon(scaledImg);
+                    JLabel cardLabel = new JLabel(icon);
+                    cardLabel.setPreferredSize(new Dimension(150, 150));
+                    cardLabel.setToolTipText(cardNumber);
 
-                    JLabel imageLabel = new JLabel(imageIcon);
-                    imageLabel.setPreferredSize(new Dimension(200, 280));
+                    cardLabel.addMouseListener(new MouseAdapter() {
+                        @Override
+                        public void mouseClicked(MouseEvent e) {
+                            addCardToDeck(number);
+                        }
+                    });
 
-                    imagePanel.add(imageLabel);
+                    imagePanel.add(cardLabel);
                 }
             }
         }
-
-        if (imagePanel.getComponentCount() == 0) {
-            JOptionPane.showMessageDialog(frame, "Es wurden keine passenden Bilder für die Kartennummern gefunden.",
-                    "Keine Bilder gefunden", JOptionPane.INFORMATION_MESSAGE);
-        }
-
-        decklistArea.setText(readDecklistText(DECKLIST_PATH));
 
         imagePanel.revalidate();
         imagePanel.repaint();
     }
 
-    private Set<String> readCardNumbersFromDecklist(String decklistPath) throws IOException {
-        Set<String> cardNumbers = new HashSet<>();
-        List<String> lines = Files.readAllLines(Paths.get(decklistPath));
+    private void regenerateDraftPools() throws IOException {
+        currentDeck.clear();
+        decklistArea.setText("");
+        loadDraftPools();
+    }
 
-        for (String line : lines) {
-            if (line.contains("x")) {
-                String cardNumber = line.split("x")[1].trim();
-                cardNumbers.add(cardNumber);
+    private void addCardToDeck(String cardNumber) {
+        boolean cardFound = false;
+
+        for (int i = 0; i < currentDeck.size(); i++) {
+            String deckCard = currentDeck.get(i);
+            if (deckCard.contains(cardNumber)) {
+                int count = Integer.parseInt(deckCard.split("x")[0].trim());
+                count++;
+                currentDeck.set(i, count + "x" + cardNumber);
+                cardFound = true;
+                break;
             }
         }
 
-        return cardNumbers;
+        if (!cardFound) {
+            currentDeck.add("1x " + cardNumber);
+        }
+
+        updateDecklist();
     }
 
-    private String readDecklistText(String decklistPath) throws IOException {
-        List<String> lines = Files.readAllLines(Paths.get(decklistPath));
-        return String.join("\n", lines);
+    private void updateDecklist() {
+        decklistArea.setText("");
+        for (String card : currentDeck) {
+            decklistArea.append(card + "\n");
+        }
     }
 }
