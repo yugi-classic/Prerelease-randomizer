@@ -49,38 +49,55 @@ public class PrereleaseRandomizer {
         List<String> commons = filterCardsByRarity(cardData, rarity -> rarity.contains("Common"));
         List<String> rares = filterCardsByRarity(cardData, rarity -> rarity.matches("(^|_)Rare($|_)"));
         List<String> uncommons = filterCardsByRarity(cardData, rarity -> rarity.contains("Uncommon"));
-        List<String> superRares = filterCardsByRarity(cardData,
-                rarity -> (rarity.contains("Super-Rare") || rarity.contains("Secret-Rare"))
-                        || rarity.contains("Alternate-Art") && !rarity.matches("(^|_)Rare($|_)"));
 
-        List<String> specialRare = filterCardsByRarity(cardData, rarity -> (rarity.contains("Special-Card")));
+        List<String> superRares = filterCardsByRarity(cardData, rarity -> (rarity.contains("Super-Rare")));
+        List<String> secretRares = filterCardsByRarity(cardData, rarity -> (rarity.contains("Secret-Rare")));
+        List<String> alternateArt = filterCardsByRarity(cardData, rarity -> (rarity.contains("Alternate-Art")));
+        List<String> specialCard = filterCardsByRarity(cardData, rarity -> (rarity.contains("Special-Card")));
+        List<String> leader = filterCardsByRarity(cardData, rarity -> (rarity.contains("Leader")));
 
         List<String> mangaRare = filterCardsByRarity(cardData, rarity -> (rarity.contains("Manga-Art")));
 
         for (int i = 0; i < DRAFT_PICKS; i++) {
             List<String> pool = new ArrayList<>();
-            pool.addAll(pickRandomCards(commons, 8, random, cardData));
+            pool.addAll(pickRandomCards(commons, 8, random, cardData, "Common"));
 
             if (random.nextDouble() > 0.3) {
-                pool.addAll(pickRandomCards(rares, 2, random, cardData));
-                pool.addAll(pickRandomCards(uncommons, 2, random, cardData));
-            }
-            else {
-
-                if (random.nextDouble() <= 0.05) {
-                    pool.addAll(pickRandomCards(specialRare, 1, random, cardData));
-                    pool.addAll(pickRandomCards(rares, 1, random, cardData));
-                    pool.addAll(pickRandomCards(uncommons, 2, random, cardData));
-                }
-                else if (random.nextDouble() <= 0.01) {
-                    pool.addAll(pickRandomCards(mangaRare, 1, random, cardData));
-                    pool.addAll(pickRandomCards(rares, 1, random, cardData));
-                    pool.addAll(pickRandomCards(uncommons, 2, random, cardData));
+                if (random.nextDouble() > 0.3) {
+                    pool.addAll(pickRandomCards(rares, 2, random, cardData, "Rare"));
+                    pool.addAll(pickRandomCards(uncommons, 2, random, cardData, "Uncommon"));
                 }
                 else {
-                    pool.addAll(pickRandomCards(superRares, 1, random, cardData));
-                    pool.addAll(pickRandomCards(rares, 1, random, cardData));
-                    pool.addAll(pickRandomCards(uncommons, 2, random, cardData));
+                    pool.addAll(pickRandomCards(leader, 1, random, cardData, "Leader"));
+                    pool.addAll(pickRandomCards(rares, 1, random, cardData, "Rare"));
+                    pool.addAll(pickRandomCards(uncommons, 2, random, cardData, "Uncommon"));
+                }
+            }
+            else {
+                if (random.nextDouble() <= 0.2) {
+                    pool.addAll(pickRandomCards(alternateArt, 1, random, cardData, "Alternate-Art"));
+                    pool.addAll(pickRandomCards(rares, 1, random, cardData, "Rare"));
+                    pool.addAll(pickRandomCards(uncommons, 2, random, cardData, "Uncommon"));
+                }
+                else if (random.nextDouble() <= 0.1) {
+                    pool.addAll(pickRandomCards(secretRares, 1, random, cardData, "Secret-Rare"));
+                    pool.addAll(pickRandomCards(rares, 1, random, cardData, "Rare"));
+                    pool.addAll(pickRandomCards(uncommons, 2, random, cardData, "Uncommon"));
+                }
+                else if (random.nextDouble() <= 0.05) {
+                    pool.addAll(pickRandomCards(specialCard, 1, random, cardData, "Special-Card"));
+                    pool.addAll(pickRandomCards(rares, 1, random, cardData, "Rare"));
+                    pool.addAll(pickRandomCards(uncommons, 2, random, cardData, "Uncommon"));
+                }
+                else if (random.nextDouble() <= 0.01) {
+                    pool.addAll(pickRandomCards(mangaRare, 1, random, cardData, "Manga-Art"));
+                    pool.addAll(pickRandomCards(rares, 1, random, cardData, "Rare"));
+                    pool.addAll(pickRandomCards(uncommons, 2, random, cardData, "Uncommon"));
+                }
+                else {
+                    pool.addAll(pickRandomCards(superRares, 1, random, cardData, "Super-Rare"));
+                    pool.addAll(pickRandomCards(rares, 1, random, cardData, "Rare"));
+                    pool.addAll(pickRandomCards(uncommons, 2, random, cardData, "Uncommon"));
                 }
             }
 
@@ -92,34 +109,55 @@ public class PrereleaseRandomizer {
     }
 
     private static List<String> pickRandomCards(List<String> cardList, int count, Random random,
-            Map<String, String> cardData) {
+            Map<String, String> cardData, String selectedRarity) {
         List<String> pickedCards = new ArrayList<>();
+
         for (int i = 0; i < count && !cardList.isEmpty(); i++) {
             int index = random.nextInt(cardList.size());
             String cardNumber = cardList.get(index);
             String rarity = cardData.get(cardNumber);
-            String[] parts = rarity.split("/");
+            String[] parts = rarity.split("_");
 
-            if (parts.length == 1) {
-                rarity = parts[0];
+            String finalRarity = getFinalRarity(parts, selectedRarity);
+
+            if (finalRarity != null) {
+                pickedCards.add(cardNumber + "_" + finalRarity);
             }
-            else if (parts.length == 2) {
-                rarity = parts[random.nextInt(2)];
-            }
-            else if (parts.length == 3) {
-                rarity = parts[random.nextInt(3)];
-            }
-            else if (parts.length == 4) {
-                rarity = parts[random.nextInt(4)];
-            }
-            pickedCards.add(cardNumber + "_" + rarity);
+
         }
+
         return pickedCards;
     }
 
     private static List<String> filterCardsByRarity(Map<String, String> cardData, Predicate<String> rarityFilter) {
         return cardData.entrySet().stream().filter(entry -> rarityFilter.test(entry.getValue())).map(Map.Entry::getKey)
                 .collect(Collectors.toList());
+    }
+
+    private static String getFinalRarity(String[] parts, String selectedRarity) {
+        switch (selectedRarity) {
+        case "Common":
+            return Arrays.stream(parts).filter(part -> part.equals("Common")).findFirst().orElse("Common");
+        case "Rare":
+            return Arrays.stream(parts).filter(part -> part.equals("Rare")).findFirst().orElse("Rare");
+        case "Uncommon":
+            return Arrays.stream(parts).filter(part -> part.equals("Uncommon")).findFirst().orElse("Uncommon");
+        case "Super-Rare":
+            return Arrays.stream(parts).filter(part -> part.equals("Super-Rare")).findFirst().orElse("Super-Rare");
+        case "Secret-Rare":
+            return Arrays.stream(parts).filter(part -> part.equals("Secret-Rare")).findFirst().orElse("Secret-Rare");
+        case "Alternate-Art":
+            return Arrays.stream(parts).filter(part -> part.equals("Alternate-Art")).findFirst()
+                    .orElse("Alternate-Art");
+        case "Special-Card":
+            return Arrays.stream(parts).filter(part -> part.equals("Special-Card")).findFirst().orElse("Special-Card");
+        case "Manga-Art":
+            return Arrays.stream(parts).filter(part -> part.equals("Manga-Art")).findFirst().orElse("Manga-Art");
+        case "Leader":
+            return Arrays.stream(parts).filter(part -> part.equals("Leader")).findFirst().orElse("Leader");
+        default:
+            return "Unknown"; // Standardwert für nicht erkannte Raritäten
+        }
     }
 
 }
