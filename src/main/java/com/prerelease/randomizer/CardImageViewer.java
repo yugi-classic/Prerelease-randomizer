@@ -37,7 +37,7 @@ import javax.swing.border.TitledBorder;
  */
 public class CardImageViewer {
 
-    private static final String IMAGE_PATH = "Images\\OnePiece\\OP09";
+    private static final String IMAGE_PATH = "images\\OnePiece\\OP09";
 
     private JFrame frame;
     private JPanel imagePanel;
@@ -60,9 +60,17 @@ public class CardImageViewer {
     }
 
     private void createAndShowGUI() {
-        frame = new JFrame("Card Draft Viewer");
+        frame = new JFrame("Pre-Release Randomizer");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
+        JPanel imageHeaderPanel = new JPanel();
+        imageHeaderPanel.setLayout(new BorderLayout());
+
+        String imagePath = "images\\random.png";
+        ImageIcon icon = new ImageIcon(imagePath);
+        Image headerIcon = icon.getImage();
+
+        frame.setIconImage(headerIcon);
 
         imagePanel = new JPanel();
         imagePanel.setLayout(new GridLayout(0, 4, 10, 10));
@@ -94,6 +102,8 @@ public class CardImageViewer {
         splitPane.setDividerLocation(1300);
         frame.add(splitPane, BorderLayout.CENTER);
         frame.add(controlPanel, BorderLayout.SOUTH);
+
+        frame.add(imageHeaderPanel, BorderLayout.NORTH);
 
         frame.setSize(1980, 1080);
         frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
