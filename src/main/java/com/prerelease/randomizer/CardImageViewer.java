@@ -6,7 +6,9 @@
 package com.prerelease.randomizer;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.event.MouseAdapter;
@@ -15,6 +17,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -24,6 +29,8 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
+import javax.swing.border.Border;
+import javax.swing.border.TitledBorder;
 
 /**
  * @author Marti
@@ -58,7 +65,7 @@ public class CardImageViewer {
         frame.setLayout(new BorderLayout());
 
         imagePanel = new JPanel();
-        imagePanel.setLayout(new GridLayout(0, 6, 10, 10));
+        imagePanel.setLayout(new GridLayout(0, 4, 10, 10));
 
         JScrollPane imageScrollPane = new JScrollPane(imagePanel);
         imageScrollPane.setPreferredSize(new Dimension(800, 800));
@@ -84,12 +91,12 @@ public class CardImageViewer {
         controlPanel.add(regenerateButton, BorderLayout.CENTER);
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, imageScrollPane, decklistScrollPane);
-        splitPane.setDividerLocation(1000);
+        splitPane.setDividerLocation(1300);
         frame.add(splitPane, BorderLayout.CENTER);
         frame.add(controlPanel, BorderLayout.SOUTH);
 
-        frame.setSize(1600, 1000);
-        frame.setLocationRelativeTo(null);
+        frame.setSize(1980, 1080);
+        frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
         frame.setVisible(true);
     }
 
@@ -98,21 +105,30 @@ public class CardImageViewer {
         List<List<String>> draftPools = randomizer.randomize();
 
         imagePanel.removeAll();
+        imagePanel.setLayout(new BoxLayout(imagePanel, BoxLayout.Y_AXIS));
 
         for (List<String> pool : draftPools) {
+            JPanel packPanel = new JPanel();
+            packPanel.setLayout(new GridLayout(0, 4, 10, 10));
+
+            Border outerBorder = BorderFactory.createLineBorder(Color.BLUE, 7);
+            Border titledBorder = BorderFactory.createTitledBorder(outerBorder, "Pack", TitledBorder.CENTER,
+                    TitledBorder.CENTER, new Font("Arial", Font.BOLD, 50), Color.BLACK);
+            packPanel.setBorder(titledBorder);
+
             for (String cardNumber : pool) {
                 File imageFile = new File(IMAGE_PATH + "\\" + cardNumber + ".png");
                 if (imageFile.exists()) {
                     ImageIcon icon = new ImageIcon(imageFile.getAbsolutePath());
                     Image img = icon.getImage();
-                    Image scaledImg = img.getScaledInstance(150, 150, Image.SCALE_SMOOTH);
+                    Image scaledImg = img.getScaledInstance(300, 419, Image.SCALE_SMOOTH);
                     icon = new ImageIcon(scaledImg);
 
                     String[] parts = cardNumber.split("_");
                     String number = parts[0];
 
                     JLabel cardLabel = new JLabel(icon);
-                    cardLabel.setPreferredSize(new Dimension(150, 150));
+                    cardLabel.setPreferredSize(new Dimension(300, 419));
                     cardLabel.setToolTipText(cardNumber);
 
                     cardLabel.addMouseListener(new MouseAdapter() {
@@ -122,9 +138,12 @@ public class CardImageViewer {
                         }
                     });
 
-                    imagePanel.add(cardLabel);
+                    packPanel.add(cardLabel);
                 }
             }
+
+            imagePanel.add(packPanel);
+            imagePanel.add(Box.createRigidArea(new Dimension(0, 20)));
         }
 
         imagePanel.revalidate();
