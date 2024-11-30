@@ -152,7 +152,7 @@ public class CardImageViewer {
         }
 
         if (!cardFound) {
-            currentDeck.add("1x " + cardNumber);
+            currentDeck.add("1x" + cardNumber);
         }
 
         updateDecklist();
