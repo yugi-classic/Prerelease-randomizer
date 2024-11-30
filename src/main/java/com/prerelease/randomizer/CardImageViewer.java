@@ -43,6 +43,7 @@ public class CardImageViewer {
     private JPanel imagePanel;
     private JTextArea decklistArea;
     private List<String> currentDeck;
+    private JLabel cardCountLabel;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new CardImageViewer().startViewer());
@@ -63,6 +64,7 @@ public class CardImageViewer {
         frame = new JFrame("Pre-Release Randomizer");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
+
         JPanel imageHeaderPanel = new JPanel();
         imageHeaderPanel.setLayout(new BorderLayout());
 
@@ -80,9 +82,11 @@ public class CardImageViewer {
 
         decklistArea = new JTextArea(20, 30);
         decklistArea.setEditable(false);
-
         JScrollPane decklistScrollPane = new JScrollPane(decklistArea);
         decklistScrollPane.setPreferredSize(new Dimension(300, 800));
+
+        cardCountLabel = new JLabel("Karten im Deck: 0");
+        cardCountLabel.setFont(new Font("Arial", Font.BOLD, 20));
 
         JButton regenerateButton = new JButton("Neu generieren");
         regenerateButton.addActionListener(e -> {
@@ -96,14 +100,13 @@ public class CardImageViewer {
 
         JPanel controlPanel = new JPanel();
         controlPanel.setLayout(new BorderLayout());
-        controlPanel.add(regenerateButton, BorderLayout.CENTER);
+        controlPanel.add(regenerateButton, BorderLayout.NORTH);
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, imageScrollPane, decklistScrollPane);
         splitPane.setDividerLocation(1300);
         frame.add(splitPane, BorderLayout.CENTER);
         frame.add(controlPanel, BorderLayout.SOUTH);
-
-        frame.add(imageHeaderPanel, BorderLayout.NORTH);
+        frame.add(cardCountLabel, BorderLayout.NORTH); // Label für die Kartenzahl
 
         frame.setSize(1980, 1080);
         frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -141,10 +144,16 @@ public class CardImageViewer {
                     cardLabel.setPreferredSize(new Dimension(300, 419));
                     cardLabel.setToolTipText(cardNumber);
 
+                    // MouseListener für Rechtsklick
                     cardLabel.addMouseListener(new MouseAdapter() {
                         @Override
-                        public void mouseClicked(MouseEvent e) {
-                            addCardToDeck(number);
+                        public void mouseReleased(MouseEvent e) {
+                            if (e.getButton() == MouseEvent.BUTTON3) { // Rechtsklick
+                                removeCardFromDeck(number);
+                            }
+                            else if (e.getButton() == MouseEvent.BUTTON1) { // Linksklick
+                                addCardToDeck(number);
+                            }
                         }
                     });
 
@@ -163,6 +172,7 @@ public class CardImageViewer {
     private void regenerateDraftPools() throws IOException {
         currentDeck.clear();
         decklistArea.setText("");
+        updateCardCount();
         loadDraftPools();
     }
 
@@ -185,6 +195,7 @@ public class CardImageViewer {
         }
 
         updateDecklist();
+        updateCardCount();
     }
 
     private void updateDecklist() {
@@ -192,5 +203,22 @@ public class CardImageViewer {
         for (String card : currentDeck) {
             decklistArea.append(card + "\n");
         }
+    }
+
+    private void updateCardCount() {
+        int cardCount = currentDeck.stream().mapToInt(card -> Integer.parseInt(card.split("x")[0].trim())).sum();
+        cardCountLabel.setText("Karten im Deck: " + cardCount);
+    }
+
+    private void removeCardFromDeck(String cardNumber) {
+        for (int i = 0; i < currentDeck.size(); i++) {
+            String deckCard = currentDeck.get(i);
+            if (deckCard.contains(cardNumber)) {
+                currentDeck.remove(i);
+                break;
+            }
+        }
+        updateDecklist();
+        updateCardCount();
     }
 }
