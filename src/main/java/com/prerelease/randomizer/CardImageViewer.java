@@ -144,7 +144,7 @@ public class CardImageViewer {
                     cardLabel.setPreferredSize(new Dimension(300, 419));
                     cardLabel.setToolTipText(cardNumber);
 
-                    // MouseListener für Rechtsklick
+                    // MouseListener für Kartenaktionen
                     cardLabel.addMouseListener(new MouseAdapter() {
                         @Override
                         public void mouseReleased(MouseEvent e) {
@@ -158,6 +158,9 @@ public class CardImageViewer {
                     });
 
                     packPanel.add(cardLabel);
+
+                    // Alle Karten direkt ins Deck hinzufügen
+                    addCardToDeck(number);
                 }
             }
 
@@ -174,6 +177,26 @@ public class CardImageViewer {
         decklistArea.setText("");
         updateCardCount();
         loadDraftPools();
+    }
+
+    private void removeCardFromDeck(String cardNumber) {
+        for (int i = 0; i < currentDeck.size(); i++) {
+            String deckCard = currentDeck.get(i);
+            if (deckCard.contains(cardNumber)) {
+                int count = Integer.parseInt(deckCard.split("x")[0].trim());
+                if (count > 1) {
+                    // Reduziere die Anzahl, wenn mehr als eine Karte vorhanden ist
+                    currentDeck.set(i, (count - 1) + "x" + cardNumber);
+                }
+                else {
+                    // Entferne die Karte, wenn nur eine vorhanden ist
+                    currentDeck.remove(i);
+                }
+                break;
+            }
+        }
+        updateDecklist();
+        updateCardCount();
     }
 
     private void addCardToDeck(String cardNumber) {
@@ -208,17 +231,5 @@ public class CardImageViewer {
     private void updateCardCount() {
         int cardCount = currentDeck.stream().mapToInt(card -> Integer.parseInt(card.split("x")[0].trim())).sum();
         cardCountLabel.setText("Karten im Deck: " + cardCount);
-    }
-
-    private void removeCardFromDeck(String cardNumber) {
-        for (int i = 0; i < currentDeck.size(); i++) {
-            String deckCard = currentDeck.get(i);
-            if (deckCard.contains(cardNumber)) {
-                currentDeck.remove(i);
-                break;
-            }
-        }
-        updateDecklist();
-        updateCardCount();
     }
 }
