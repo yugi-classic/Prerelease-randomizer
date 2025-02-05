@@ -1,5 +1,0 @@
-# Alles ignorieren
-*
-
-# Ausnahmen hinzufügen
-!Prerelease-randomizer/Prerelease-Randomizer/*.exe
